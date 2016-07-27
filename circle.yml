@@ -1,6 +1,9 @@
 machine:
   timezone:
     Europe/Vienna
+  java:
+    Xversion: openjdk7
+    version: oraclejdk8
   environment:
 ###### custom 1 ######
     ZEMU_: "appemu23"
