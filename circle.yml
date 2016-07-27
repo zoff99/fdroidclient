@@ -111,7 +111,7 @@ dependencies:
 
 # --- copy apk file to generic location ---
     - mkdir -p ./app/build/outputs/apk/
-    - cp -v `find ./build/outputs/apk/ -name '*.apk' 2> /dev/null | tail -1 2> /dev/null` ./app/build/outputs/apk/app-debug-unaligned.apk
+    - if [ ! -e ./app/build/outputs/apk/app-debug-unaligned.apk ]; then cp -v `find ./build/outputs/apk/ -name '*.apk' 2> /dev/null | tail -1 2> /dev/null` ./app/build/outputs/apk/app-debug-unaligned.apk ; fi
 # --- copy apk file to generic location ---
 
     - zip -d app/build/outputs/apk/app-debug-unaligned.apk META-INF/\*     # remove signature !!
