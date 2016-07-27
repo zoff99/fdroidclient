@@ -64,7 +64,10 @@ dependencies:
     - echo y | android update sdk --no-ui --all --filter build-tools-23.0.2 > /dev/null 2> /dev/null
     - echo y | android update sdk --no-ui --all --filter build-tools-23.0.3 > /dev/null 2> /dev/null
     - echo y | android update sdk --no-ui --all --filter build-tools-22.0.0 > /dev/null 2> /dev/null
+    - echo y | android update sdk --no-ui --all --filter android-21 > /dev/null 2> /dev/null
+    - echo y | android update sdk --no-ui --all --filter android-22 > /dev/null 2> /dev/null
     - echo y | android update sdk --no-ui --all --filter android-23 > /dev/null 2> /dev/null
+    - echo y | android update sdk --no-ui --all --filter android-24 > /dev/null 2> /dev/null
     - echo y | android update sdk --no-ui --all --filter platform-tools > /dev/null 2> /dev/null
 
     - echo y | android update sdk --no-ui --all --filter extra-android-m2repository > /dev/null 2> /dev/null
