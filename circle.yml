@@ -22,6 +22,14 @@ machine:
     START_INTENT_P: org.fdroid.fdroid.FDroid
 ###### custom 3 ######
 
+###############################
+#   0 -> no
+#   1 -> C
+#   2 -> Java
+    COVERITY_BUILD_: 0
+    COV_PROJ: zoff99%2Fzanavi
+###############################
+
     ANDROID_HOME: /usr/local/android-sdk-linux
     ANDROID_SDK: /usr/local/android-sdk-linux/
     _SDK_: /usr/local/android-sdk-linux/
@@ -40,7 +48,8 @@ dependencies:
     - sudo apt-get install x11-utils > /dev/null 2> /dev/null
     - sudo apt-get install xvkbd > /dev/null 2> /dev/null
     - sudo apt-get install qrencode > /dev/null 2> /dev/null
-
+    - sudo apt-get install zip > /dev/null 2> /dev/null
+    - sudo apt-get install bc > /dev/null 2> /dev/null
 
     - gradle -v # display gradle version
     - if [ "$GRADLE_CUSTOM_VERSION""x" == "1x" ]; then cd ~ ; wget https://services.gradle.org/distributions/gradle-2.10-bin.zip ; fi
@@ -67,6 +76,8 @@ dependencies:
     - echo y | android update sdk --no-ui --all --filter sys-img-armeabi-v7a-addon-google_apis-google-23 > /dev/null 2> /dev/null
     - echo y | android update sdk --no-ui --all --filter addon-google_apis-google-23 > /dev/null 2> /dev/null
 
+    - if [ "$COVERITY_BUILD_""x" != "0x" ]; then mkdir ~/cov_scan/ && wget https://scan.coverity.com/download/linux-64 --post-data "token=$COVERITY_TOKEN&project=$COV_PROJ" -O ~/cov_scan/coverity_tool.tgz && wget 'http://www.catb.org/~esr/coverity-submit/coverity-submit-1.17.tar.gz' -O ~/cov_scan/coverity-submit.tar.gz && cd ~/cov_scan/ && tar -xzvf coverity_tool.tgz ; fi
+
     - pwd ; ls -al
 
 ###### custom ######
@@ -79,6 +90,11 @@ dependencies:
 
     - ls -al build/outputs/apk/ ; exit 0
     - find . -name '*.apk' ; exit 0
+
+    - if [ "$COVERITY_BUILD_""x" != "0x" ]; then ls -al build/cov-int/ ; exit 0 ; fi
+    - if [ "$COVERITY_BUILD_""x" != "0x" ]; then cp -v build/cov-int/build-log.txt $CIRCLE_ARTIFACTS/ ; exit 0 ; fi
+    - if [ "$COVERITY_BUILD_""x" != "0x" ]; then cd build/ ; tar -czvf $CIRCLE_ARTIFACTS/covint.tar.gz cov-int ; exit 0 ; fi
+
 
 # --- copy apk file to generic location ---
     - mkdir -p ./app/build/outputs/apk/
