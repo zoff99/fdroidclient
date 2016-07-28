@@ -17,6 +17,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
 import org.fdroid.fdroid.AppDetails;
+import org.fdroid.fdroid.Preferences;
 import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.data.Apk;
@@ -134,6 +135,12 @@ public class InstallManagerService extends Service {
         registerReceiver(br, intentFilter);
     }
 
+
+    public void onDestroy(){
+        super.onDestroy();
+        Utils.debugLog(TAG, "destroying Service");
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Utils.debugLog(TAG, "onStartCommand " + intent);
@@ -213,6 +220,13 @@ public class InstallManagerService extends Service {
         for (BroadcastReceiver receiver : receivers.get(urlString)) {
             localBroadcastManager.unregisterReceiver(receiver);
         }
+
+        // ------------ stop this service if expert pref is off ------------
+        if (Preferences.get().isInstall_mgr_srvEnabled() == false)
+        {
+            this.stopSelf();
+        }
+        // ------------ stop this service if expert pref is off ------------
     }
 
     private void registerDownloaderReceivers(String urlString) {
