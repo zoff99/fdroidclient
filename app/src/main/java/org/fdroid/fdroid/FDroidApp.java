@@ -46,9 +46,9 @@ import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 import com.nostra13.universalimageloader.utils.StorageUtils;
 
-import org.acra.ACRA;
-import org.acra.ReportingInteractionMode;
-import org.acra.annotation.ReportsCrashes;
+// import org.acra.ACRA;
+// import org.acra.ReportingInteractionMode;
+// import org.acra.annotation.ReportsCrashes;
 import org.apache.commons.net.util.SubnetUtils;
 import org.fdroid.fdroid.Preferences.ChangeListener;
 import org.fdroid.fdroid.Preferences.Theme;
@@ -70,10 +70,12 @@ import info.guardianproject.netcipher.NetCipher;
 import info.guardianproject.netcipher.proxy.OrbotHelper;
 import sun.net.www.protocol.bluetooth.Handler;
 
-@ReportsCrashes(mailTo = "reports@f-droid.org",
+/*
+@ReportsCrashes(mailTo = "null@null.null",
                 mode = ReportingInteractionMode.DIALOG,
                 reportDialogClass = CrashReportActivity.class
                 )
+*/
 public class FDroidApp extends Application {
 
     private static final String TAG = "FDroidApp";
@@ -189,8 +191,8 @@ public class FDroidApp extends Application {
         }
         updateLanguage();
 
+        /*
         ACRA.init(this);
-        // if this is the ACRA process, do not run the rest of onCreate()
         int pid = android.os.Process.myPid();
         ActivityManager manager = (ActivityManager) this.getSystemService(Context.ACTIVITY_SERVICE);
         for (RunningAppProcessInfo processInfo : manager.getRunningAppProcesses()) {
@@ -198,6 +200,7 @@ public class FDroidApp extends Application {
                 return;
             }
         }
+        */
 
         PRNGFixes.apply();
 
