@@ -58,6 +58,7 @@ public final class Preferences implements SharedPreferences.OnSharedPreferenceCh
     public static final String PREF_UNSTABLE_UPDATES = "unstableUpdates";
     public static final String PREF_EXPERT = "expert";
     public static final String PREF_PRIVILEGED_INSTALLER = "privilegedInstaller";
+    public static final String PREF_INSTALL_MGR_SRV = "install_mgr_srv";
     public static final String PREF_UNINSTALL_PRIVILEGED_APP = "uninstallPrivilegedApp";
     public static final String PREF_LOCAL_REPO_NAME = "localRepoName";
     public static final String PREF_LOCAL_REPO_HTTPS = "localRepoHttps";
@@ -73,6 +74,7 @@ public final class Preferences implements SharedPreferences.OnSharedPreferenceCh
     private static final boolean DEFAULT_ROOTED = true;
     private static final int DEFAULT_UPD_HISTORY = 14;
     private static final boolean DEFAULT_PRIVILEGED_INSTALLER = false;
+    private static final boolean DEFAULT_INSTALL_MGR_SRV = true;
     //private static final boolean DEFAULT_LOCAL_REPO_BONJOUR = true;
     private static final long DEFAULT_KEEP_CACHE_SECONDS = 86400;  // one day
     private static final boolean DEFAULT_UNSTABLE_UPDATES = false;
@@ -115,6 +117,10 @@ public final class Preferences implements SharedPreferences.OnSharedPreferenceCh
 
     private void uninitialize(String key) {
         initialized.put(key, false);
+    }
+
+    public boolean isInstall_mgr_srvEnabled() {
+        return preferences.getBoolean(PREF_INSTALL_MGR_SRV, DEFAULT_INSTALL_MGR_SRV);
     }
 
     public boolean isPrivilegedInstallerEnabled() {

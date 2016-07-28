@@ -17,6 +17,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
 import org.fdroid.fdroid.AppDetails;
+import org.fdroid.fdroid.Preferences;
 import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.data.Apk;
@@ -57,7 +58,8 @@ import java.util.Set;
  * <li>for an {@code int} ID, use {@link String#hashCode()}
  * </ul></p>
  */
-public class InstallManagerService extends Service {
+public class InstallManagerService extends Service
+{
     public static final String TAG = "InstallManagerService";
 
     private static final String ACTION_INSTALL = "org.fdroid.fdroid.installer.action.INSTALL";
@@ -92,7 +94,7 @@ public class InstallManagerService extends Service {
      * notification update comes around.  Once there is a proper
      * {@code InstallerService} and its integrated here, this must go away,
      * since the {@link App} and {@link Apk} instances will be available.
-     * <p>
+     * <p/>
      * TODO <b>delete me once InstallerService exists</b>
      */
     private static final HashMap<String, String> TEMP_HACK_APP_NAMES = new HashMap<>(3);
@@ -104,23 +106,34 @@ public class InstallManagerService extends Service {
      * This service does not use binding, so no need to implement this method
      */
     @Override
-    public IBinder onBind(Intent intent) {
+    public IBinder onBind(Intent intent)
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "onBind");
+
         return null;
     }
 
     @Override
-    public void onCreate() {
+    public void onCreate()
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "onCreate");
+
         super.onCreate();
         Utils.debugLog(TAG, "creating Service");
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        BroadcastReceiver br = new BroadcastReceiver() {
+        BroadcastReceiver br = new BroadcastReceiver()
+        {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, Intent intent)
+            {
                 String packageName = intent.getData().getSchemeSpecificPart();
-                for (Map.Entry<String, Apk> entry : ACTIVE_APKS.entrySet()) {
-                    if (TextUtils.equals(packageName, entry.getValue().packageName)) {
+                for (Map.Entry<String, Apk> entry : ACTIVE_APKS.entrySet())
+                {
+                    if (TextUtils.equals(packageName, entry.getValue().packageName))
+                    {
                         String urlString = entry.getKey();
                         cancelNotification(urlString);
                         break;
@@ -135,27 +148,42 @@ public class InstallManagerService extends Service {
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public void onDestroy(){
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "onDestroy");
+        super.onDestroy();
+
+        Utils.debugLog(TAG, "destroying Service");
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId)
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "onStartCommand" + " I=" + intent);
+
         Utils.debugLog(TAG, "onStartCommand " + intent);
 
-        if (!ACTION_INSTALL.equals(intent.getAction())) {
+        if (!ACTION_INSTALL.equals(intent.getAction()))
+        {
             Utils.debugLog(TAG, "Ignoring " + intent + " as it is not an " + ACTION_INSTALL + " intent");
             return START_NOT_STICKY;
         }
 
         String urlString = intent.getDataString();
-        if (TextUtils.isEmpty(urlString)) {
+        if (TextUtils.isEmpty(urlString))
+        {
             Utils.debugLog(TAG, "empty urlString, nothing to do");
             return START_NOT_STICKY;
         }
 
-        if (!intent.hasExtra(EXTRA_APP) || !intent.hasExtra(EXTRA_APK)) {
+        if (!intent.hasExtra(EXTRA_APP) || !intent.hasExtra(EXTRA_APK))
+        {
             Utils.debugLog(TAG, urlString + " did not include both an App and Apk instance, ignoring");
             return START_NOT_STICKY;
         }
 
-        if ((flags & START_FLAG_REDELIVERY) == START_FLAG_REDELIVERY
-                && !DownloaderService.isQueuedOrActive(urlString)) {
+        if ((flags & START_FLAG_REDELIVERY) == START_FLAG_REDELIVERY && !DownloaderService.isQueuedOrActive(urlString))
+        {
             Utils.debugLog(TAG, urlString + " finished downloading while InstallManagerService was killed.");
             cancelNotification(urlString);
             return START_NOT_STICKY;
@@ -172,17 +200,25 @@ public class InstallManagerService extends Service {
 
         File apkFilePath = Utils.getApkDownloadPath(this, intent.getData());
         long apkFileSize = apkFilePath.length();
-        if (!apkFilePath.exists() || apkFileSize < apk.size) {
+        if (!apkFilePath.exists() || apkFileSize < apk.size)
+        {
             Utils.debugLog(TAG, "download " + urlString + " " + apkFilePath);
             DownloaderService.queue(this, urlString);
-        } else if (apkIsCached(apkFilePath, apk)) {
-            Utils.debugLog(TAG, "skip download, we have it, straight to install " + urlString + " " + apkFilePath);
-            sendBroadcast(intent.getData(), Downloader.ACTION_STARTED, apkFilePath);
-            sendBroadcast(intent.getData(), Downloader.ACTION_COMPLETE, apkFilePath);
-        } else {
-            Utils.debugLog(TAG, " delete and download again " + urlString + " " + apkFilePath);
-            apkFilePath.delete();
-            DownloaderService.queue(this, urlString);
+        }
+        else
+        {
+            if (apkIsCached(apkFilePath, apk))
+            {
+                Utils.debugLog(TAG, "skip download, we have it, straight to install " + urlString + " " + apkFilePath);
+                sendBroadcast(intent.getData(), Downloader.ACTION_STARTED, apkFilePath);
+                sendBroadcast(intent.getData(), Downloader.ACTION_COMPLETE, apkFilePath);
+            }
+            else
+            {
+                Utils.debugLog(TAG, " delete and download again " + urlString + " " + apkFilePath);
+                apkFilePath.delete();
+                DownloaderService.queue(this, urlString);
+            }
         }
         return START_REDELIVER_INTENT; // if killed before completion, retry Intent
     }
@@ -192,108 +228,140 @@ public class InstallManagerService extends Service {
      * we received from the signed repo (i.e. {@link Apk#hash} and {@link Apk#hashType}).
      * Bails out if the file sizes don't match to prevent having to do the work of hashing the file.
      */
-    private static boolean apkIsCached(File apkFile, Apk apkToCheck) {
-        try {
-            return apkFile.length() == apkToCheck.size &&
-                    Installer.verifyApkFile(apkFile, apkToCheck.hash, apkToCheck.hashType);
-        } catch (NoSuchAlgorithmException e) {
+    private static boolean apkIsCached(File apkFile, Apk apkToCheck)
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "apkIsCached");
+
+        try
+        {
+            return apkFile.length() == apkToCheck.size && Installer.verifyApkFile(apkFile, apkToCheck.hash, apkToCheck.hashType);
+        }
+        catch (NoSuchAlgorithmException e)
+        {
             e.printStackTrace();
             return false;
         }
     }
 
-    private void sendBroadcast(Uri uri, String action, File file) {
+    private void sendBroadcast(Uri uri, String action, File file)
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "sendBroadcast");
+
         Intent intent = new Intent(action);
         intent.setData(uri);
         intent.putExtra(Downloader.EXTRA_DOWNLOAD_PATH, file.getAbsolutePath());
         localBroadcastManager.sendBroadcast(intent);
     }
 
-    private void unregisterDownloaderReceivers(String urlString) {
-        for (BroadcastReceiver receiver : receivers.get(urlString)) {
+    private void unregisterDownloaderReceivers(String urlString)
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "unregisterDownloaderReceivers");
+
+        for (BroadcastReceiver receiver : receivers.get(urlString))
+        {
             localBroadcastManager.unregisterReceiver(receiver);
         }
+
+        // ------------ stop this service if expert pref is off ------------
+        if (Preferences.get().isInstall_mgr_srvEnabled() == false)
+        {
+            this.stopSelf();
+        }
+        // ------------ stop this service if expert pref is off ------------
     }
 
-    private void registerDownloaderReceivers(String urlString) {
-        BroadcastReceiver startedReceiver = new BroadcastReceiver() {
+    private void registerDownloaderReceivers(String urlString)
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "registerDownloaderReceivers");
+
+        BroadcastReceiver startedReceiver = new BroadcastReceiver()
+        {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, Intent intent)
+            {
             }
         };
-        BroadcastReceiver progressReceiver = new BroadcastReceiver() {
+        BroadcastReceiver progressReceiver = new BroadcastReceiver()
+        {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, Intent intent)
+            {
                 String urlString = intent.getDataString();
                 Apk apk = ACTIVE_APKS.get(urlString);
                 int bytesRead = intent.getIntExtra(Downloader.EXTRA_BYTES_READ, 0);
                 int totalBytes = intent.getIntExtra(Downloader.EXTRA_TOTAL_BYTES, 0);
-                Notification notification = createNotification(urlString, apk)
-                        .setProgress(totalBytes, bytesRead, false)
-                        .build();
+                Notification notification = createNotification(urlString, apk).setProgress(totalBytes, bytesRead, false).build();
                 notificationManager.notify(urlString.hashCode(), notification);
             }
         };
-        BroadcastReceiver completeReceiver = new BroadcastReceiver() {
+        BroadcastReceiver completeReceiver = new BroadcastReceiver()
+        {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, Intent intent)
+            {
                 String urlString = intent.getDataString();
                 // TODO these need to be removed based on whether they are fed to InstallerService or not
                 Apk apk = removeFromActive(urlString);
-                if (AppDetails.isAppVisible(apk.packageName)) {
+                if (AppDetails.isAppVisible(apk.packageName))
+                {
                     cancelNotification(urlString);
-                } else {
+                }
+                else
+                {
                     notifyDownloadComplete(apk, urlString);
                 }
                 unregisterDownloaderReceivers(urlString);
             }
         };
-        BroadcastReceiver interruptedReceiver = new BroadcastReceiver() {
+        BroadcastReceiver interruptedReceiver = new BroadcastReceiver()
+        {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, Intent intent)
+            {
                 String urlString = intent.getDataString();
                 Apk apk = removeFromActive(urlString);
                 unregisterDownloaderReceivers(urlString);
                 cancelNotification(urlString);
             }
         };
-        localBroadcastManager.registerReceiver(startedReceiver,
-                DownloaderService.getIntentFilter(urlString, Downloader.ACTION_STARTED));
-        localBroadcastManager.registerReceiver(progressReceiver,
-                DownloaderService.getIntentFilter(urlString, Downloader.ACTION_PROGRESS));
-        localBroadcastManager.registerReceiver(completeReceiver,
-                DownloaderService.getIntentFilter(urlString, Downloader.ACTION_COMPLETE));
-        localBroadcastManager.registerReceiver(interruptedReceiver,
-                DownloaderService.getIntentFilter(urlString, Downloader.ACTION_INTERRUPTED));
-        receivers.put(urlString, new BroadcastReceiver[]{
-                startedReceiver, progressReceiver, completeReceiver, interruptedReceiver,
-        });
+        localBroadcastManager.registerReceiver(startedReceiver, DownloaderService.getIntentFilter(urlString, Downloader.ACTION_STARTED));
+        localBroadcastManager.registerReceiver(progressReceiver, DownloaderService.getIntentFilter(urlString, Downloader.ACTION_PROGRESS));
+        localBroadcastManager.registerReceiver(completeReceiver, DownloaderService.getIntentFilter(urlString, Downloader.ACTION_COMPLETE));
+        localBroadcastManager.registerReceiver(interruptedReceiver, DownloaderService.getIntentFilter(urlString, Downloader.ACTION_INTERRUPTED));
+        receivers.put(urlString, new BroadcastReceiver[]{startedReceiver, progressReceiver, completeReceiver, interruptedReceiver,});
     }
 
-    private NotificationCompat.Builder createNotification(String urlString, Apk apk) {
+    private NotificationCompat.Builder createNotification(String urlString, Apk apk)
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "createNotification");
+
         int downloadUrlId = urlString.hashCode();
-        return new NotificationCompat.Builder(this)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .setContentIntent(getAppDetailsIntent(downloadUrlId, apk))
-                .setContentTitle(getString(R.string.downloading_apk, getAppName(urlString, apk)))
-                .addAction(R.drawable.ic_cancel_black_24dp, getString(R.string.cancel),
-                        DownloaderService.getCancelPendingIntent(this, urlString))
-                .setSmallIcon(android.R.drawable.stat_sys_download)
-                .setContentText(urlString)
-                .setProgress(100, 0, true);
+        return new NotificationCompat.Builder(this).setAutoCancel(false).setOngoing(true).setContentIntent(getAppDetailsIntent(downloadUrlId, apk)).setContentTitle(getString(R.string.downloading_apk, getAppName(urlString, apk))).addAction(R.drawable.ic_cancel_black_24dp, getString(R.string.cancel), DownloaderService.getCancelPendingIntent(this, urlString)).setSmallIcon(android.R.drawable.stat_sys_download).setContentText(urlString).setProgress(100, 0, true);
     }
 
-    private String getAppName(String urlString, Apk apk) {
+    private String getAppName(String urlString, Apk apk)
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "getAppName");
+
         App app = ACTIVE_APPS.get(apk.packageName);
-        if (app == null || TextUtils.isEmpty(app.name)) {
-            if (TEMP_HACK_APP_NAMES.containsKey(urlString)) {
+        if (app == null || TextUtils.isEmpty(app.name))
+        {
+            if (TEMP_HACK_APP_NAMES.containsKey(urlString))
+            {
                 return TEMP_HACK_APP_NAMES.get(urlString);
-            } else {
+            }
+            else
+            {
                 // this is ugly, but its better than nothing as a failsafe
                 return urlString;
             }
-        } else {
+        }
+        else
+        {
             return app.name;
         }
     }
@@ -304,39 +372,40 @@ public class InstallManagerService extends Service {
      * or bad {@link AppDetails#EXTRA_APPID}, so it does not need to be checked
      * here.
      */
-    private PendingIntent getAppDetailsIntent(int requestCode, Apk apk) {
-        Intent notifyIntent = new Intent(getApplicationContext(), AppDetails.class)
-                .putExtra(AppDetails.EXTRA_APPID, apk.packageName);
-        return TaskStackBuilder.create(getApplicationContext())
-                .addParentStack(AppDetails.class)
-                .addNextIntent(notifyIntent)
-                .getPendingIntent(requestCode, PendingIntent.FLAG_UPDATE_CURRENT);
+    private PendingIntent getAppDetailsIntent(int requestCode, Apk apk)
+    {
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "getAppDetailsIntent");
+
+
+        Intent notifyIntent = new Intent(getApplicationContext(), AppDetails.class).putExtra(AppDetails.EXTRA_APPID, apk.packageName);
+        return TaskStackBuilder.create(getApplicationContext()).addParentStack(AppDetails.class).addNextIntent(notifyIntent).getPendingIntent(requestCode, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     /**
      * Post a notification about a completed download.  {@code packageName} must be a valid
      * and currently in the app index database.
      */
-    private void notifyDownloadComplete(Apk apk, String urlString) {
+    private void notifyDownloadComplete(Apk apk, String urlString)
+    {
         String title;
-        try {
+        try
+        {
             PackageManager pm = getPackageManager();
-            title = String.format(getString(R.string.tap_to_update_format),
-                    pm.getApplicationLabel(pm.getApplicationInfo(apk.packageName, 0)));
-        } catch (PackageManager.NameNotFoundException e) {
+            title = String.format(getString(R.string.tap_to_update_format), pm.getApplicationLabel(pm.getApplicationInfo(apk.packageName, 0)));
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
             title = String.format(getString(R.string.tap_to_install_format), getAppName(urlString, apk));
         }
 
         int downloadUrlId = urlString.hashCode();
-        NotificationCompat.Builder builder =
-                new NotificationCompat.Builder(this)
-                        .setAutoCancel(true)
-                        .setContentTitle(title)
-                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                        .setContentIntent(getAppDetailsIntent(downloadUrlId, apk))
-                        .setContentText(getString(R.string.tap_to_install));
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this).setAutoCancel(true).setContentTitle(title).setSmallIcon(android.R.drawable.stat_sys_download_done).setContentIntent(getAppDetailsIntent(downloadUrlId, apk)).setContentText(getString(R.string.tap_to_install));
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         nm.notify(downloadUrlId, builder.build());
+
+
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "notifyDownloadComplete");
     }
 
     /**
@@ -344,11 +413,15 @@ public class InstallManagerService extends Service {
      * unique ID used to represent a given APK file. {@link String#hashCode()}
      * converts {@code urlString} to the required {@code int}.
      */
-    private void cancelNotification(String urlString) {
+    private void cancelNotification(String urlString)
+    {
         notificationManager.cancel(urlString.hashCode());
     }
 
-    private static void addToActive(String urlString, App app, Apk apk) {
+    private static void addToActive(String urlString, App app, Apk apk)
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "addToActive" +" "+app.name+" "+app.packageName+" "+urlString);
+
         ACTIVE_APKS.put(urlString, apk);
         ACTIVE_APPS.put(app.packageName, app);
         TEMP_HACK_APP_NAMES.put(urlString, app.name);  // TODO delete me once InstallerService exists
@@ -361,9 +434,13 @@ public class InstallManagerService extends Service {
      * {@link BroadcastReceiver}s, in which case {@code urlString} would not
      * find anything in the active maps.
      */
-    private static Apk removeFromActive(String urlString) {
+    private static Apk removeFromActive(String urlString)
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "removeFromActive" +" "+urlString);
+
         Apk apk = ACTIVE_APKS.remove(urlString);
-        if (apk == null) {
+        if (apk == null)
+        {
             return new Apk();
         }
         ACTIVE_APPS.remove(apk.packageName);
@@ -376,7 +453,10 @@ public class InstallManagerService extends Service {
      *
      * @param context this app's {@link Context}
      */
-    public static void queue(Context context, App app, Apk apk) {
+    public static void queue(Context context, App app, Apk apk)
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "queue" +" "+app.name+" "+apk.getUrl());
+
         String urlString = apk.getUrl();
         Utils.debugLog(TAG, "queue " + app.packageName + " " + apk.versionCode + " from " + urlString);
         Intent intent = new Intent(context, InstallManagerService.class);
@@ -393,7 +473,10 @@ public class InstallManagerService extends Service {
      * {@code InstallManagerService} process, either as a {@code String} or as an
      * {@code int} from {@link String#hashCode()}.
      */
-    public static Set<String> getActiveDownloadUrls() {
+    public static Set<String> getActiveDownloadUrls()
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "getActiveDownloadUrls");
+
         return ACTIVE_APKS.keySet();
     }
 
@@ -402,7 +485,10 @@ public class InstallManagerService extends Service {
      * {@code packageName}s are used as unique IDs for apps throughout all of
      * Android, F-Droid, and other apps stores.
      */
-    public static Set<String> getActivePackageNames() {
+    public static Set<String> getActivePackageNames()
+    {
+        System.out.println("ZZfroidZZ:" + "InstallManagerService" + "getActivePackageNames");
+
         return ACTIVE_APPS.keySet();
     }
 }
