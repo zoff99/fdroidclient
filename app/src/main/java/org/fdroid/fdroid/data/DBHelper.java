@@ -11,7 +11,8 @@ import android.util.Log;
 import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.data.Schema.ApkTable;
-import org.fdroid.fdroid.data.Schema.AppTable;
+import org.fdroid.fdroid.data.Schema.AppPrefsTable;
+import org.fdroid.fdroid.data.Schema.AppMetadataTable;
 import org.fdroid.fdroid.data.Schema.InstalledAppTable;
 import org.fdroid.fdroid.data.Schema.RepoTable;
 
@@ -68,38 +69,43 @@ class DBHelper extends SQLiteOpenHelper {
             + "PRIMARY KEY (" + ApkTable.Cols.APP_ID + ", " + ApkTable.Cols.VERSION_CODE + ", " + ApkTable.Cols.REPO_ID + ")"
             + ");";
 
-    private static final String CREATE_TABLE_APP = "CREATE TABLE " + AppTable.NAME
+    private static final String CREATE_TABLE_APP = "CREATE TABLE " + AppMetadataTable.NAME
             + " ( "
-            + AppTable.Cols.PACKAGE_NAME + " text not null, "
-            + AppTable.Cols.NAME + " text not null, "
-            + AppTable.Cols.SUMMARY + " text not null, "
-            + AppTable.Cols.ICON + " text, "
-            + AppTable.Cols.DESCRIPTION + " text not null, "
-            + AppTable.Cols.LICENSE + " text not null, "
-            + AppTable.Cols.AUTHOR + " text, "
-            + AppTable.Cols.EMAIL + " text, "
-            + AppTable.Cols.WEB_URL + " text, "
-            + AppTable.Cols.TRACKER_URL + " text, "
-            + AppTable.Cols.SOURCE_URL + " text, "
-            + AppTable.Cols.CHANGELOG_URL + " text, "
-            + AppTable.Cols.SUGGESTED_VERSION_CODE + " text,"
-            + AppTable.Cols.UPSTREAM_VERSION_NAME + " text,"
-            + AppTable.Cols.UPSTREAM_VERSION_CODE + " integer,"
-            + AppTable.Cols.ANTI_FEATURES + " string,"
-            + AppTable.Cols.DONATE_URL + " string,"
-            + AppTable.Cols.BITCOIN_ADDR + " string,"
-            + AppTable.Cols.LITECOIN_ADDR + " string,"
-            + AppTable.Cols.FLATTR_ID + " string,"
-            + AppTable.Cols.REQUIREMENTS + " string,"
-            + AppTable.Cols.CATEGORIES + " string,"
-            + AppTable.Cols.ADDED + " string,"
-            + AppTable.Cols.LAST_UPDATED + " string,"
-            + AppTable.Cols.IS_COMPATIBLE + " int not null,"
-            + AppTable.Cols.IGNORE_ALLUPDATES + " int not null,"
-            + AppTable.Cols.IGNORE_THISUPDATE + " int not null,"
-            + AppTable.Cols.ICON_URL + " text, "
-            + AppTable.Cols.ICON_URL_LARGE + " text, "
-            + "primary key(" + AppTable.Cols.PACKAGE_NAME + "));";
+            + AppMetadataTable.Cols.PACKAGE_NAME + " text not null, "
+            + AppMetadataTable.Cols.NAME + " text not null, "
+            + AppMetadataTable.Cols.SUMMARY + " text not null, "
+            + AppMetadataTable.Cols.ICON + " text, "
+            + AppMetadataTable.Cols.DESCRIPTION + " text not null, "
+            + AppMetadataTable.Cols.LICENSE + " text not null, "
+            + AppMetadataTable.Cols.AUTHOR + " text, "
+            + AppMetadataTable.Cols.EMAIL + " text, "
+            + AppMetadataTable.Cols.WEB_URL + " text, "
+            + AppMetadataTable.Cols.TRACKER_URL + " text, "
+            + AppMetadataTable.Cols.SOURCE_URL + " text, "
+            + AppMetadataTable.Cols.CHANGELOG_URL + " text, "
+            + AppMetadataTable.Cols.SUGGESTED_VERSION_CODE + " text,"
+            + AppMetadataTable.Cols.UPSTREAM_VERSION_NAME + " text,"
+            + AppMetadataTable.Cols.UPSTREAM_VERSION_CODE + " integer,"
+            + AppMetadataTable.Cols.ANTI_FEATURES + " string,"
+            + AppMetadataTable.Cols.DONATE_URL + " string,"
+            + AppMetadataTable.Cols.BITCOIN_ADDR + " string,"
+            + AppMetadataTable.Cols.LITECOIN_ADDR + " string,"
+            + AppMetadataTable.Cols.FLATTR_ID + " string,"
+            + AppMetadataTable.Cols.REQUIREMENTS + " string,"
+            + AppMetadataTable.Cols.CATEGORIES + " string,"
+            + AppMetadataTable.Cols.ADDED + " string,"
+            + AppMetadataTable.Cols.LAST_UPDATED + " string,"
+            + AppMetadataTable.Cols.IS_COMPATIBLE + " int not null,"
+            + AppMetadataTable.Cols.ICON_URL + " text, "
+            + AppMetadataTable.Cols.ICON_URL_LARGE + " text, "
+            + "primary key(" + AppMetadataTable.Cols.PACKAGE_NAME + "));";
+
+    private static final String CREATE_TABLE_APP_PREFS = "CREATE TABLE " + AppPrefsTable.NAME
+            + " ( "
+            + AppPrefsTable.Cols.PACKAGE_NAME + " TEXT, "
+            + AppPrefsTable.Cols.IGNORE_THIS_UPDATE + " INT BOOLEAN NOT NULL, "
+            + AppPrefsTable.Cols.IGNORE_ALL_UPDATES + " INT NOT NULL "
+            + " );";
 
     private static final String CREATE_TABLE_INSTALLED_APP = "CREATE TABLE " + InstalledAppTable.NAME
             + " ( "
@@ -114,7 +120,7 @@ class DBHelper extends SQLiteOpenHelper {
             + " );";
     private static final String DROP_TABLE_INSTALLED_APP = "DROP TABLE " + InstalledAppTable.NAME + ";";
 
-    private static final int DB_VERSION = 59;
+    private static final int DB_VERSION = 61;
 
     private final Context context;
 
@@ -216,9 +222,12 @@ class DBHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
 
-        createAppApk(db);
+        db.execSQL(CREATE_TABLE_APP);
+        db.execSQL(CREATE_TABLE_APK);
         db.execSQL(CREATE_TABLE_INSTALLED_APP);
         db.execSQL(CREATE_TABLE_REPO);
+        db.execSQL(CREATE_TABLE_APP_PREFS);
+        ensureIndexes(db);
 
         insertRepo(
                 db,
@@ -296,7 +305,7 @@ class DBHelper extends SQLiteOpenHelper {
         // The other tables are transient and can just be reset. Do this after
         // the repo table changes though, because it also clears the lastetag
         // fields which didn't always exist.
-        resetTransient(db, oldVersion);
+        resetTransientPre42(db, oldVersion);
 
         addNameAndDescriptionToRepo(db, oldVersion);
         addFingerprintToRepo(db, oldVersion);
@@ -317,6 +326,42 @@ class DBHelper extends SQLiteOpenHelper {
         addTargetSdkVersionToApk(db, oldVersion);
         migrateAppPrimaryKeyToRowId(db, oldVersion);
         removeApkPackageNameColumn(db, oldVersion);
+        addAppPrefsTable(db, oldVersion);
+        lowerCaseApkHashes(db, oldVersion);
+    }
+
+    private void lowerCaseApkHashes(SQLiteDatabase db, int oldVersion) {
+        if (oldVersion >= 61) {
+            return;
+        }
+        Utils.debugLog(TAG, "Lowercasing all APK hashes");
+        db.execSQL("UPDATE " + InstalledAppTable.NAME + " SET " + InstalledAppTable.Cols.HASH
+                + " = lower(" + InstalledAppTable.Cols.HASH + ")");
+    }
+
+    private void addAppPrefsTable(SQLiteDatabase db, int oldVersion) {
+        if (oldVersion >= 60) {
+            return;
+        }
+
+        Utils.debugLog(TAG, "Creating app preferences table");
+        db.execSQL(CREATE_TABLE_APP_PREFS);
+
+        Utils.debugLog(TAG, "Migrating app preferences to separate table");
+        db.execSQL(
+                "INSERT INTO " + AppPrefsTable.NAME + " ("
+                + AppPrefsTable.Cols.PACKAGE_NAME + ", "
+                + AppPrefsTable.Cols.IGNORE_THIS_UPDATE + ", "
+                + AppPrefsTable.Cols.IGNORE_ALL_UPDATES
+                + ") SELECT "
+                + AppMetadataTable.Cols.PACKAGE_NAME + ", "
+                + "ignoreThisUpdate, "
+                + "ignoreAllUpdates "
+                + "FROM " + AppMetadataTable.NAME + " "
+                + "WHERE ignoreThisUpdate > 0 OR ignoreAllUpdates > 0"
+        );
+
+        resetTransient(db);
     }
 
     /**
@@ -416,10 +461,10 @@ class DBHelper extends SQLiteOpenHelper {
                 // Hard coded the string literal ".id" as ApkTable.Cols.PACKAGE_NAME was removed in
                 // the subsequent migration (DB_VERSION 59)
                 final String update = "UPDATE " + ApkTable.NAME + " SET " + ApkTable.Cols.APP_ID + " = ( " +
-                        "SELECT app." + AppTable.Cols.ROW_ID + " " +
-                        "FROM " + AppTable.NAME + " AS app " +
-                        "WHERE " + ApkTable.NAME + ".id = app." + AppTable.Cols.PACKAGE_NAME + ")";
-                Log.i(TAG, "Updating foreign key from " + ApkTable.NAME + " to " + AppTable.NAME + " to use numeric foreign key.");
+                        "SELECT app." + AppMetadataTable.Cols.ROW_ID + " " +
+                        "FROM " + AppMetadataTable.NAME + " AS app " +
+                        "WHERE " + ApkTable.NAME + ".id = app." + AppMetadataTable.Cols.PACKAGE_NAME + ")";
+                Log.i(TAG, "Updating foreign key from " + ApkTable.NAME + " to " + AppMetadataTable.NAME + " to use numeric foreign key.");
                 Utils.debugLog(TAG, update);
                 db.execSQL(update);
                 ensureIndexes(db);
@@ -589,19 +634,19 @@ class DBHelper extends SQLiteOpenHelper {
     }
 
     private void addChangelogToApp(SQLiteDatabase db, int oldVersion) {
-        if (oldVersion >= 48 || columnExists(db, AppTable.NAME, AppTable.Cols.CHANGELOG_URL)) {
+        if (oldVersion >= 48 || columnExists(db, AppMetadataTable.NAME, AppMetadataTable.Cols.CHANGELOG_URL)) {
             return;
         }
-        Utils.debugLog(TAG, "Adding " + AppTable.Cols.CHANGELOG_URL + " column to " + AppTable.NAME);
-        db.execSQL("alter table " + AppTable.NAME + " add column " + AppTable.Cols.CHANGELOG_URL + " text");
+        Utils.debugLog(TAG, "Adding " + AppMetadataTable.Cols.CHANGELOG_URL + " column to " + AppMetadataTable.NAME);
+        db.execSQL("alter table " + AppMetadataTable.NAME + " add column " + AppMetadataTable.Cols.CHANGELOG_URL + " text");
     }
 
     private void addIconUrlLargeToApp(SQLiteDatabase db, int oldVersion) {
-        if (oldVersion >= 49 || columnExists(db, AppTable.NAME, AppTable.Cols.ICON_URL_LARGE)) {
+        if (oldVersion >= 49 || columnExists(db, AppMetadataTable.NAME, AppMetadataTable.Cols.ICON_URL_LARGE)) {
             return;
         }
-        Utils.debugLog(TAG, "Adding " + AppTable.Cols.ICON_URL_LARGE + " columns to " + AppTable.NAME);
-        db.execSQL("alter table " + AppTable.NAME + " add column " + AppTable.Cols.ICON_URL_LARGE + " text");
+        Utils.debugLog(TAG, "Adding " + AppMetadataTable.Cols.ICON_URL_LARGE + " columns to " + AppMetadataTable.NAME);
+        db.execSQL("alter table " + AppMetadataTable.NAME + " add column " + AppMetadataTable.Cols.ICON_URL_LARGE + " text");
     }
 
     private void updateIconUrlLarge(SQLiteDatabase db, int oldVersion) {
@@ -617,13 +662,13 @@ class DBHelper extends SQLiteOpenHelper {
         if (oldVersion >= 53) {
             return;
         }
-        if (!columnExists(db, AppTable.NAME, AppTable.Cols.AUTHOR)) {
-            Utils.debugLog(TAG, "Adding " + AppTable.Cols.AUTHOR + " column to " + AppTable.NAME);
-            db.execSQL("alter table " + AppTable.NAME + " add column " + AppTable.Cols.AUTHOR + " text");
+        if (!columnExists(db, AppMetadataTable.NAME, AppMetadataTable.Cols.AUTHOR)) {
+            Utils.debugLog(TAG, "Adding " + AppMetadataTable.Cols.AUTHOR + " column to " + AppMetadataTable.NAME);
+            db.execSQL("alter table " + AppMetadataTable.NAME + " add column " + AppMetadataTable.Cols.AUTHOR + " text");
         }
-        if (!columnExists(db, AppTable.NAME, AppTable.Cols.EMAIL)) {
-            Utils.debugLog(TAG, "Adding " + AppTable.Cols.EMAIL + " column to " + AppTable.NAME);
-            db.execSQL("alter table " + AppTable.NAME + " add column " + AppTable.Cols.EMAIL + " text");
+        if (!columnExists(db, AppMetadataTable.NAME, AppMetadataTable.Cols.EMAIL)) {
+            Utils.debugLog(TAG, "Adding " + AppMetadataTable.Cols.EMAIL + " column to " + AppMetadataTable.NAME);
+            db.execSQL("alter table " + AppMetadataTable.NAME + " add column " + AppMetadataTable.Cols.EMAIL + " text");
         }
     }
 
@@ -657,12 +702,27 @@ class DBHelper extends SQLiteOpenHelper {
      * their repos (either manually or on a scheduled task), they will update regardless of whether
      * they have changed since last update or not.
      */
-    private void clearRepoEtags(SQLiteDatabase db) {
+    private static void clearRepoEtags(SQLiteDatabase db) {
         Utils.debugLog(TAG, "Clearing repo etags, so next update will not be skipped with \"Repos up to date\".");
         db.execSQL("update " + RepoTable.NAME + " set " + RepoTable.Cols.LAST_ETAG + " = NULL");
     }
 
-    private void resetTransient(SQLiteDatabase db, int oldVersion) {
+    private void resetTransient(SQLiteDatabase db) {
+        Utils.debugLog(TAG, "Removing app + apk tables so they can be recreated. Next time F-Droid updates it should trigger an index update.");
+        context.getSharedPreferences("FDroid", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("triedEmptyUpdate", false)
+                .apply();
+
+        db.execSQL("DROP TABLE " + AppMetadataTable.NAME);
+        db.execSQL("DROP TABLE " + ApkTable.NAME);
+        db.execSQL(CREATE_TABLE_APP);
+        db.execSQL(CREATE_TABLE_APK);
+        clearRepoEtags(db);
+        ensureIndexes(db);
+    }
+
+    private void resetTransientPre42(SQLiteDatabase db, int oldVersion) {
         // Before version 42, only transient info was stored in here. As of some time
         // just before 42 (F-Droid 0.60ish) it now has "ignore this version" info which
         // was is specified by the user. We don't want to weely-neely nuke that data.
@@ -672,29 +732,42 @@ class DBHelper extends SQLiteOpenHelper {
             return;
         }
         context.getSharedPreferences("FDroid", Context.MODE_PRIVATE).edit()
-                .putBoolean("triedEmptyUpdate", false).commit();
-        db.execSQL("drop table " + AppTable.NAME);
+                .putBoolean("triedEmptyUpdate", false).apply();
+        db.execSQL("drop table " + AppMetadataTable.NAME);
         db.execSQL("drop table " + ApkTable.NAME);
         clearRepoEtags(db);
-        createAppApk(db);
-    }
-
-    private static void createAppApk(SQLiteDatabase db) {
         db.execSQL(CREATE_TABLE_APP);
         db.execSQL(CREATE_TABLE_APK);
         ensureIndexes(db);
     }
 
     private static void ensureIndexes(SQLiteDatabase db) {
-        Utils.debugLog(TAG, "Ensuring indexes exist for " + AppTable.NAME);
-        db.execSQL("CREATE INDEX IF NOT EXISTS app_id on " + AppTable.NAME + " (" + AppTable.Cols.PACKAGE_NAME + ");");
-        db.execSQL("CREATE INDEX IF NOT EXISTS name on " + AppTable.NAME + " (" + AppTable.Cols.NAME + ");"); // Used for sorting most lists
-        db.execSQL("CREATE INDEX IF NOT EXISTS added on " + AppTable.NAME + " (" + AppTable.Cols.ADDED + ");"); // Used for sorting "newly added"
+        Utils.debugLog(TAG, "Ensuring indexes exist for " + AppMetadataTable.NAME);
+        db.execSQL("CREATE INDEX IF NOT EXISTS app_id on " + AppMetadataTable.NAME + " (" + AppMetadataTable.Cols.PACKAGE_NAME + ");");
+        db.execSQL("CREATE INDEX IF NOT EXISTS name on " + AppMetadataTable.NAME + " (" + AppMetadataTable.Cols.NAME + ");"); // Used for sorting most lists
+        db.execSQL("CREATE INDEX IF NOT EXISTS added on " + AppMetadataTable.NAME + " (" + AppMetadataTable.Cols.ADDED + ");"); // Used for sorting "newly added"
 
         Utils.debugLog(TAG, "Ensuring indexes exist for " + ApkTable.NAME);
         db.execSQL("CREATE INDEX IF NOT EXISTS apk_vercode on " + ApkTable.NAME + " (" + ApkTable.Cols.VERSION_CODE + ");");
         db.execSQL("CREATE INDEX IF NOT EXISTS apk_appId on " + ApkTable.NAME + " (" + ApkTable.Cols.APP_ID + ");");
         db.execSQL("CREATE INDEX IF NOT EXISTS repoId ON " + ApkTable.NAME + " (" + ApkTable.Cols.REPO_ID + ");");
+
+        if (tableExists(db, AppPrefsTable.NAME)) {
+            Utils.debugLog(TAG, "Ensuring indexes exist for " + AppPrefsTable.NAME);
+            db.execSQL("CREATE INDEX IF NOT EXISTS appPrefs_packageName on " + AppPrefsTable.NAME + " (" + AppPrefsTable.Cols.PACKAGE_NAME + ");");
+            db.execSQL("CREATE INDEX IF NOT EXISTS appPrefs_packageName_ignoreAll_ignoreThis on " + AppPrefsTable.NAME + " (" +
+                    AppPrefsTable.Cols.PACKAGE_NAME + ", " +
+                    AppPrefsTable.Cols.IGNORE_ALL_UPDATES + ", " +
+                    AppPrefsTable.Cols.IGNORE_THIS_UPDATE + ");");
+        }
+
+        Utils.debugLog(TAG, "Ensuring indexes exist for " + InstalledAppTable.NAME);
+        db.execSQL("CREATE INDEX IF NOT EXISTS installedApp_appId_vercode on " + InstalledAppTable.NAME + " (" +
+                InstalledAppTable.Cols.PACKAGE_NAME + ", " + InstalledAppTable.Cols.VERSION_CODE + ");");
+
+        Utils.debugLog(TAG, "Ensuring indexes exist for " + RepoTable.NAME);
+        db.execSQL("CREATE INDEX IF NOT EXISTS repo_id_isSwap on " + RepoTable.NAME + " (" +
+                RepoTable.Cols._ID + ", " + RepoTable.Cols.IS_SWAP + ");");
     }
 
     /**
@@ -722,10 +795,20 @@ class DBHelper extends SQLiteOpenHelper {
                 + ApkTable.Cols.TARGET_SDK_VERSION + " integer");
     }
 
-    private static boolean columnExists(SQLiteDatabase db,
-            String table, String column) {
-        return db.rawQuery("select * from " + table + " limit 0,1", null)
-                .getColumnIndex(column) != -1;
+    private static boolean columnExists(SQLiteDatabase db, String table, String column) {
+        Cursor cursor = db.rawQuery("select * from " + table + " limit 0,1", null);
+        boolean exists = cursor.getColumnIndex(column) != -1;
+        cursor.close();
+        return exists;
+    }
+
+    private static boolean tableExists(SQLiteDatabase db, String table) {
+        Cursor cursor = db.query("sqlite_master", new String[] {"name"},
+                "type = 'table' AND name = ?", new String[] {table}, null, null, null);
+
+        boolean exists = cursor.getCount() > 0;
+        cursor.close();
+        return exists;
     }
 
 }

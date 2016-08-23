@@ -10,7 +10,7 @@ import android.util.Log;
 
 import org.fdroid.fdroid.data.Schema.ApkTable;
 import org.fdroid.fdroid.data.Schema.ApkTable.Cols;
-import org.fdroid.fdroid.data.Schema.AppTable;
+import org.fdroid.fdroid.data.Schema.AppMetadataTable;
 import org.fdroid.fdroid.data.Schema.RepoTable;
 
 import java.util.ArrayList;
@@ -60,30 +60,6 @@ public class ApkProvider extends FDroidProvider {
             ContentResolver resolver = context.getContentResolver();
             final Uri uri = getRepoUri(repo.getId());
             return resolver.delete(uri, null, null);
-        }
-
-        public static void deleteApksByApp(Context context, App app) {
-            ContentResolver resolver = context.getContentResolver();
-            final Uri uri = getAppUri(app.packageName);
-            resolver.delete(uri, null, null);
-        }
-
-        public static void deleteApks(final Context context, final List<Apk> apks) {
-            if (apks.size() > ApkProvider.MAX_APKS_TO_QUERY) {
-                int middle = apks.size() / 2;
-                List<Apk> apks1 = apks.subList(0, middle);
-                List<Apk> apks2 = apks.subList(middle, apks.size());
-                deleteApks(context, apks1);
-                deleteApks(context, apks2);
-            } else {
-                deleteApksSafely(context, apks);
-            }
-        }
-
-        private static void deleteApksSafely(final Context context, final List<Apk> apks) {
-            ContentResolver resolver = context.getContentResolver();
-            final Uri uri = getContentUri(apks);
-            resolver.delete(uri, null, null);
         }
 
         public static Apk find(Context context, String packageName, int versionCode) {
@@ -213,7 +189,7 @@ public class ApkProvider extends FDroidProvider {
     static {
         REPO_FIELDS.put(Cols.Repo.VERSION, RepoTable.Cols.VERSION);
         REPO_FIELDS.put(Cols.Repo.ADDRESS, RepoTable.Cols.ADDRESS);
-        APP_FIELDS.put(Cols.App.PACKAGE_NAME, AppTable.Cols.PACKAGE_NAME);
+        APP_FIELDS.put(Cols.App.PACKAGE_NAME, AppMetadataTable.Cols.PACKAGE_NAME);
 
         MATCHER.addURI(getAuthority(), PATH_REPO + "/#", CODE_REPO);
         MATCHER.addURI(getAuthority(), PATH_APK + "/#/*", CODE_SINGLE);
@@ -320,7 +296,7 @@ public class ApkProvider extends FDroidProvider {
     }
 
     protected String getAppTableName() {
-        return AppTable.NAME;
+        return AppMetadataTable.NAME;
     }
 
     @Override
@@ -343,7 +319,7 @@ public class ApkProvider extends FDroidProvider {
             final String app  = getAppTableName();
 
             return apk + " AS apk " +
-                " LEFT JOIN " + app + " AS app ON (app." + AppTable.Cols.ROW_ID + " = apk." + Cols.APP_ID + ")";
+                " LEFT JOIN " + app + " AS app ON (app." + AppMetadataTable.Cols.ROW_ID + " = apk." + Cols.APP_ID + ")";
         }
 
         @Override
@@ -427,7 +403,7 @@ public class ApkProvider extends FDroidProvider {
     }
 
     private QuerySelection queryRepoApps(long repoId, String packageNames) {
-        return queryRepo(repoId).add(AppProvider.queryApps(packageNames, "app." + AppTable.Cols.PACKAGE_NAME));
+        return queryRepo(repoId).add(AppProvider.queryApps(packageNames, "app." + AppMetadataTable.Cols.PACKAGE_NAME));
     }
 
     protected QuerySelection queryApks(String apkKeys) {
@@ -467,7 +443,7 @@ public class ApkProvider extends FDroidProvider {
     }
 
     private String getAppIdFromPackageNameQuery() {
-        return "SELECT " + AppTable.Cols.ROW_ID + " FROM " + getAppTableName() + " WHERE " + AppTable.Cols.PACKAGE_NAME + " = ?";
+        return "SELECT " + AppMetadataTable.Cols.ROW_ID + " FROM " + getAppTableName() + " WHERE " + AppMetadataTable.Cols.PACKAGE_NAME + " = ?";
     }
 
     @Override

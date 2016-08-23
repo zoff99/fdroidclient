@@ -23,20 +23,6 @@ public class RepoPersister {
     private static final String TAG = "RepoPersister";
 
     /**
-     * When an app already exists in the db, and we are updating it on the off chance that some
-     * values changed in the index, some fields should not be updated. Rather, they should be
-     * ignored, because they were explicitly set by the user, and hence can't be automatically
-     * overridden by the index.
-     *
-     * NOTE: In the future, these attributes will be moved to a join table, so that the app table
-     * is essentially completely transient, and can be nuked at any time.
-     */
-    private static final String[] APP_FIELDS_TO_IGNORE = {
-        Schema.AppTable.Cols.IGNORE_ALLUPDATES,
-        Schema.AppTable.Cols.IGNORE_THISUPDATE,
-    };
-
-    /**
      * Crappy benchmark with a Nexus 4, Android 5.0 on a fairly crappy internet connection I get:
      * * 25 = 37 seconds
      * * 50 = 33 seconds
@@ -157,7 +143,7 @@ public class RepoPersister {
         for (App app : apps) {
             packageNames.add(app.packageName);
         }
-        String[] projection = {Schema.AppTable.Cols.ROW_ID, Schema.AppTable.Cols.PACKAGE_NAME};
+        String[] projection = {Schema.AppMetadataTable.Cols.ROW_ID, Schema.AppMetadataTable.Cols.PACKAGE_NAME};
         List<App> fromDb = TempAppProvider.Helper.findByPackageNames(context, packageNames, projection);
 
         Map<String, Long> ids = new HashMap<>(fromDb.size());
@@ -219,13 +205,7 @@ public class RepoPersister {
      */
     private ContentProviderOperation updateExistingApp(App app) {
         Uri uri = TempAppProvider.getAppUri(app);
-        ContentValues values = app.toContentValues();
-        for (final String toIgnore : APP_FIELDS_TO_IGNORE) {
-            if (values.containsKey(toIgnore)) {
-                values.remove(toIgnore);
-            }
-        }
-        return ContentProviderOperation.newUpdate(uri).withValues(values).build();
+        return ContentProviderOperation.newUpdate(uri).withValues(app.toContentValues()).build();
     }
 
     /**
@@ -244,7 +224,7 @@ public class RepoPersister {
      * array.
      */
     private boolean isAppInDatabase(App app) {
-        String[] fields = {Schema.AppTable.Cols.PACKAGE_NAME};
+        String[] fields = {Schema.AppMetadataTable.Cols.PACKAGE_NAME};
         App found = AppProvider.Helper.findByPackageName(context.getContentResolver(), app.packageName, fields);
         return found != null;
     }
